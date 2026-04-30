@@ -93,6 +93,8 @@ LOGIN_OVERLAY_CSS = """
 #login-overlay{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
   background:linear-gradient(135deg,#1B2F6E 0%,#0e1a47 100%);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
 #login-overlay .card{background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.4);padding:34px 30px;width:340px;max-width:92vw;}
+#login-overlay .logo-wrap{text-align:center;margin-bottom:14px;}
+#login-overlay .logo-wrap img{height:54px;max-width:100%;object-fit:contain;}
 #login-overlay h1{font-size:18px;margin:0 0 4px 0;color:#1B2F6E;text-align:center;}
 #login-overlay .sub{font-size:12px;color:#64748b;text-align:center;margin-bottom:18px;}
 #login-overlay label{display:block;font-size:12px;color:#334155;margin:10px 0 4px 0;font-weight:500;}
@@ -109,6 +111,7 @@ LOGIN_OVERLAY_CSS = """
 LOGIN_OVERLAY_HTML = """
 <div id="login-overlay">
   <div class="card">
+    <div class="logo-wrap"><img id="login-logo-img" alt="Hivimar Industrial" src="__LOGIN_LOGO_SRC__"></div>
     <h1>Tablero Director Industria</h1>
     <div class="sub">Hivimar · Acceso autorizado</div>
     <form id="login-form" autocomplete="on">
@@ -322,12 +325,16 @@ def transformar_html(html: str, secure_payload: dict) -> str:
     # 5) Inyectar CSS del login en <head>
     new_html = new_html.replace('</head>', LOGIN_OVERLAY_CSS + '\n</head>', 1)
 
-    # 6) Inyectar overlay HTML justo despues de <body>
+    # 6) Inyectar overlay HTML justo despues de <body>, con el logo del HTML fuente
     body_open = re.search(r'<body[^>]*>', new_html)
     if not body_open:
         sys.exit("FATAL: no se encontró <body>.")
+    # Extraer el logo data URI del <img id="logo"> del HTML original (no sensible)
+    logo_match = re.search(r'<img id="logo" src="(data:image/[^"]+)"', new_html)
+    logo_src = logo_match.group(1) if logo_match else ''
+    overlay_html = LOGIN_OVERLAY_HTML.replace('__LOGIN_LOGO_SRC__', logo_src)
     insertion_point = body_open.end()
-    new_html = new_html[:insertion_point] + '\n' + LOGIN_OVERLAY_HTML + new_html[insertion_point:]
+    new_html = new_html[:insertion_point] + '\n' + overlay_html + new_html[insertion_point:]
 
     # 7) Inyectar JS del login antes de </body>
     new_html = new_html.replace('</body>', LOGIN_JS + '\n</body>', 1)
