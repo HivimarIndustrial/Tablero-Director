@@ -1,0 +1,90 @@
+# =====================================================================
+# Indicadores Tablero / Tablero Director Industria  (REPO PUBLICO)
+# Lo unico publicado es docs/index.html (cifrado AES-GCM).
+# =====================================================================
+
+# === SECRETOS ============================================================
+claves.json
+*.password
+.env
+credenciales*
+secrets*
+**/credenciales/
+*.pem
+*.key
+
+# === DATOS SENSIBLES (Excel, salida cruda, dumps) ========================
+*.xlsx
+~$*.xlsx
+*.csv
+salida_raw/
+Datos RAW/
+db_output*.js
+data.json
+data_embedded.json
+
+# === HTMLs en CLARO (con datos sin cifrar) — solo se sube docs/ ==========
+*.html
+!docs/*.html
+*.html.bak*
+*.html.backup*
+*.prepatch
+
+# === Documentos internos (Word/PDF) — pueden tener info sensible ========
+*.docx
+*.pdf
+*.eml
+
+# === Dumps / artefactos de exploracion (Qlik, Odoo) =====================
+automatizacion/.qlik_state/
+automatizacion/*.json
+# Excepcion: el mapeo definitivo SI se usa en runtime
+!automatizacion/odoo_mapeo_definitivo.json
+automatizacion/*.txt
+automatizacion/*.eml
+automatizacion/*.png
+automatizacion/probes_*
+automatizacion/hallazgos_*
+automatizacion/profiler_*
+automatizacion/qlik_apps_*
+automatizacion/raw_sheets_*
+automatizacion/cartera_kgtrxf*
+automatizacion/excel_*
+
+# === Scripts de exploracion / one-off (no son parte del pipeline core) ==
+automatizacion/descubrir_*.py
+automatizacion/explorar_*.py
+automatizacion/inspeccionar_*.py
+automatizacion/mapear_*.py
+automatizacion/probar_*.py
+automatizacion/refinar_*.py
+automatizacion/diagnostico_*.py
+
+# === Backups y logs ======================================================
+*.backup_*
+*.bak_*
+*.bak
+logs/
+*.log
+
+# === Python ==============================================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# === Editores / OS =======================================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Claude Code =========================================================
+.claude/
+memory.md
+project_*.md
+ULTIMO_OK.txt

@@ -1,0 +1,650 @@
+{
+  "raw_cotizaciones": [
+    {
+      "col": "A",
+      "header": "Referencia del pedido",
+      "model": "sale.order",
+      "field": "name",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Order Reference",
+      "relation": null
+    },
+    {
+      "col": "B",
+      "header": "Creado",
+      "model": "sale.order",
+      "field": "create_date",
+      "ok": true,
+      "type": "datetime",
+      "string_odoo": "Creation Date",
+      "relation": null
+    },
+    {
+      "col": "C",
+      "header": "Codigo SAP Cliente",
+      "model": "sale.order",
+      "field": "partner_sap_code",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Código SAP Cliente",
+      "relation": null
+    },
+    {
+      "col": "D",
+      "header": "Cliente",
+      "model": "sale.order",
+      "field": "partner_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Customer",
+      "relation": "res.partner"
+    },
+    {
+      "col": "E",
+      "header": "Description",
+      "model": "sale.order.line",
+      "field": "name",
+      "ok": true,
+      "type": "text",
+      "string_odoo": "Description",
+      "relation": null
+    },
+    {
+      "col": "F",
+      "header": "Grupo Articulo",
+      "model": "sale.order.line",
+      "field": "group_article_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Grupo Artículo",
+      "relation": "product.group.article"
+    },
+    {
+      "col": "G",
+      "header": "Codigo SAP Generalista",
+      "model": "sale.order.line",
+      "field": "x_seller_sap_code",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Código SAP Generalista",
+      "relation": null
+    },
+    {
+      "col": "H",
+      "header": "Comercial",
+      "model": "sale.order",
+      "field": "user_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Salesperson",
+      "relation": "res.users"
+    },
+    {
+      "col": "I",
+      "header": "Creado por:",
+      "model": "sale.order",
+      "field": "create_uid",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Created by",
+      "relation": "res.users"
+    },
+    {
+      "col": "J",
+      "header": "Cantidad",
+      "model": "sale.order.line",
+      "field": "product_uom_qty",
+      "ok": true,
+      "type": "float",
+      "string_odoo": "Quantity",
+      "relation": null
+    },
+    {
+      "col": "K",
+      "header": "Cantidad de entrega",
+      "model": "sale.order.line",
+      "field": "qty_delivered",
+      "ok": true,
+      "type": "float",
+      "string_odoo": "Delivery Quantity",
+      "relation": null
+    },
+    {
+      "col": "L",
+      "header": "Cantidad Facturada",
+      "model": "sale.order.line",
+      "field": "qty_invoiced",
+      "ok": true,
+      "type": "float",
+      "string_odoo": "Invoiced Quantity",
+      "relation": null
+    },
+    {
+      "col": "M",
+      "header": "Cantidad a facturar",
+      "model": "sale.order.line",
+      "field": "qty_to_invoice",
+      "ok": true,
+      "type": "float",
+      "string_odoo": "Quantity To Invoice",
+      "relation": null
+    },
+    {
+      "col": "N",
+      "header": "Precio unitario",
+      "model": "sale.order.line",
+      "field": "price_unit",
+      "ok": true,
+      "type": "float",
+      "string_odoo": "Unit Price",
+      "relation": null
+    },
+    {
+      "col": "O",
+      "header": "Desc. (%)",
+      "model": "sale.order.line",
+      "field": "discount",
+      "ok": true,
+      "type": "float",
+      "string_odoo": "Discount (%)",
+      "relation": null
+    },
+    {
+      "col": "P",
+      "header": "Unidad de Medida",
+      "model": "sale.order.line",
+      "field": "product_uom",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Unit of Measure",
+      "relation": "uom.uom"
+    },
+    {
+      "col": "Q",
+      "header": "Subtotal",
+      "model": "sale.order.line",
+      "field": "price_subtotal",
+      "ok": true,
+      "type": "monetary",
+      "string_odoo": "Subtotal",
+      "relation": null
+    },
+    {
+      "col": "R",
+      "header": "Total",
+      "model": "sale.order",
+      "field": "amount_total",
+      "ok": true,
+      "type": "monetary",
+      "string_odoo": "Total",
+      "relation": null
+    },
+    {
+      "col": "S",
+      "header": "Estado del pedido",
+      "model": "sale.order",
+      "field": "state",
+      "ok": true,
+      "type": "selection",
+      "string_odoo": "Status",
+      "relation": null
+    }
+  ],
+  "fact_oportunidades": [
+    {
+      "col": "A",
+      "header": "Creado",
+      "model": "crm.lead",
+      "field": "create_date",
+      "ok": true,
+      "type": "datetime",
+      "string_odoo": "Created on",
+      "relation": null
+    },
+    {
+      "col": "B",
+      "header": "Name Sequence",
+      "model": "crm.lead",
+      "field": "name_sequence",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Name Sequence",
+      "relation": null
+    },
+    {
+      "col": "C",
+      "header": "Canal",
+      "model": "crm.lead",
+      "field": "sap_channel_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Canal",
+      "relation": "res.partner.channel"
+    },
+    {
+      "col": "D",
+      "header": "Codigo SAP Creador",
+      "model": "crm.lead",
+      "field": "x_create_uid",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Código SAP Creador",
+      "relation": null
+    },
+    {
+      "col": "E",
+      "header": "Creado por:",
+      "model": "crm.lead",
+      "field": "create_uid",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Created by",
+      "relation": "res.users"
+    },
+    {
+      "col": "F",
+      "header": "Ultima Actualizacion por",
+      "model": "crm.lead",
+      "field": "write_uid",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Last Updated by",
+      "relation": "res.users"
+    },
+    {
+      "col": "G",
+      "header": "Actualizado en",
+      "model": "crm.lead",
+      "field": "write_date",
+      "ok": true,
+      "type": "datetime",
+      "string_odoo": "Last Updated on",
+      "relation": null
+    },
+    {
+      "col": "H",
+      "header": "Oportunidad",
+      "model": "crm.lead",
+      "field": "name",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Opportunity",
+      "relation": null
+    },
+    {
+      "col": "I",
+      "header": "Codigo SAP Cliente",
+      "model": "crm.lead",
+      "field": "x_partner_sap_code",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Código SAP Cliente",
+      "relation": null
+    },
+    {
+      "col": "J",
+      "header": "Cliente",
+      "model": "crm.lead",
+      "field": "partner_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Customer",
+      "relation": "res.partner"
+    },
+    {
+      "col": "K",
+      "header": "Etapa",
+      "model": "crm.lead",
+      "field": "stage_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Stage",
+      "relation": "crm.stage"
+    },
+    {
+      "col": "L",
+      "header": "Ultima actualizacion de la etapa",
+      "model": "crm.lead",
+      "field": "date_last_stage_update",
+      "ok": true,
+      "type": "datetime",
+      "string_odoo": "Last Stage Update",
+      "relation": null
+    },
+    {
+      "col": "M",
+      "header": "Nombre del contacto",
+      "model": "crm.lead",
+      "field": "contact_name",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Contact Name",
+      "relation": null
+    },
+    {
+      "col": "N",
+      "header": "Comercial",
+      "model": "crm.lead",
+      "field": "user_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Salesperson",
+      "relation": "res.users"
+    },
+    {
+      "col": "O",
+      "header": "Codigo SAP Generalista",
+      "model": "crm.lead",
+      "field": "x_seller_sap_code",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Código SAP Generalista",
+      "relation": null
+    },
+    {
+      "col": "P",
+      "header": "Grupo de articulo",
+      "model": "crm.lead",
+      "field": "group_article_id",
+      "ok": true,
+      "type": "many2many",
+      "string_odoo": "Grupo de artículo",
+      "relation": "product.group.article"
+    },
+    {
+      "col": "Q",
+      "header": "Marca",
+      "model": "crm.lead",
+      "field": "product_brand_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Marca",
+      "relation": "product.brand"
+    },
+    {
+      "col": "R",
+      "header": "Vendedor Especialista",
+      "model": "crm.lead",
+      "field": "specialist_seller_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Vendedor Especialista",
+      "relation": "res.users"
+    },
+    {
+      "col": "S",
+      "header": "Fecha de Facturacion Estimada",
+      "model": "crm.lead",
+      "field": "estimated_invoice_date",
+      "ok": true,
+      "type": "date",
+      "string_odoo": "Fecha de Facturación Estimada",
+      "relation": null
+    },
+    {
+      "col": "T",
+      "header": "Actividades",
+      "model": "crm.lead",
+      "field": "activity_ids",
+      "ok": true,
+      "type": "one2many",
+      "string_odoo": "Activities",
+      "relation": "mail.activity"
+    },
+    {
+      "col": "U",
+      "header": "Motivo de perdida",
+      "model": "crm.lead",
+      "field": "lost_reason_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Lost Reason",
+      "relation": "crm.lost.reason"
+    },
+    {
+      "col": "V",
+      "header": "Fecha limite de la siguiente actividad",
+      "model": "crm.lead",
+      "field": "activity_date_deadline",
+      "ok": true,
+      "type": "date",
+      "string_odoo": "Next Activity Deadline",
+      "relation": null
+    },
+    {
+      "col": "W",
+      "header": "Ingreso esperado",
+      "model": "crm.lead",
+      "field": "expected_revenue",
+      "ok": true,
+      "type": "monetary",
+      "string_odoo": "Expected Revenue",
+      "relation": null
+    },
+    {
+      "col": "X",
+      "header": "Fecha de cierre",
+      "model": "crm.lead",
+      "field": "date_deadline",
+      "ok": true,
+      "type": "date",
+      "string_odoo": "Expected Closing",
+      "relation": null
+    },
+    {
+      "col": "Y",
+      "header": "active",
+      "model": "crm.lead",
+      "field": "active",
+      "ok": true,
+      "type": "boolean",
+      "string_odoo": "Active",
+      "relation": null
+    },
+    {
+      "col": "Z",
+      "header": "Equipo Ventas",
+      "model": "crm.lead",
+      "field": "team_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Sales Team",
+      "relation": "crm.team"
+    }
+  ],
+  "raw_actividadespendientes": [
+    {
+      "col": "A",
+      "header": "Nombre del documento",
+      "model": "mail.activity",
+      "field": "res_name",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Document Name",
+      "relation": null
+    },
+    {
+      "col": "B",
+      "header": "Codigo SAP Asignado",
+      "model": "mail.activity",
+      "field": "x_user_sap_code",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Código SAP Asignado",
+      "relation": null
+    },
+    {
+      "col": "C",
+      "header": "Asignada a",
+      "model": "mail.activity",
+      "field": "user_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Assigned to",
+      "relation": "res.users"
+    },
+    {
+      "col": "D",
+      "header": "Tipo de actividad",
+      "model": "mail.activity",
+      "field": "activity_type_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Activity Type",
+      "relation": "mail.activity.type"
+    },
+    {
+      "col": "E",
+      "header": "Modelo de documento",
+      "model": "mail.activity",
+      "field": "res_model",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Related Document Model",
+      "relation": null
+    },
+    {
+      "col": "F",
+      "header": "Resumen",
+      "model": "mail.activity",
+      "field": "summary",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Summary",
+      "relation": null
+    },
+    {
+      "col": "G",
+      "header": "Fecha de vencimiento",
+      "model": "mail.activity",
+      "field": "date_deadline",
+      "ok": true,
+      "type": "date",
+      "string_odoo": "Due Date",
+      "relation": null
+    }
+  ],
+  "raw_visitas": [
+    {
+      "col": "A",
+      "header": "Nombre",
+      "model": "crm.visit",
+      "field": "name",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Nombre",
+      "relation": null
+    },
+    {
+      "col": "B",
+      "header": "Codigo SAP Cliente",
+      "model": "crm.visit",
+      "field": "x_partner_sap_code",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Código SAP Cliente",
+      "relation": null
+    },
+    {
+      "col": "C",
+      "header": "Cliente",
+      "model": "crm.visit",
+      "field": "partner_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Cliente",
+      "relation": "res.partner"
+    },
+    {
+      "col": "D",
+      "header": "Codigo SAP Responsable",
+      "model": "crm.visit",
+      "field": "x_responsible_sap_code",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Código SAP Responsable",
+      "relation": null
+    },
+    {
+      "col": "E",
+      "header": "Responsable",
+      "model": "crm.visit",
+      "field": "responsible_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Responsable",
+      "relation": "res.users"
+    },
+    {
+      "col": "F",
+      "header": "Geocerca relacionada",
+      "model": "crm.visit",
+      "field": "geofence_id",
+      "ok": true,
+      "type": "many2one",
+      "string_odoo": "Geocerca relacionada",
+      "relation": "crm.geofence"
+    },
+    {
+      "col": "G",
+      "header": "Fecha planificada",
+      "model": "crm.visit",
+      "field": "planned_date",
+      "ok": true,
+      "type": "datetime",
+      "string_odoo": "Fecha planificada",
+      "relation": null
+    },
+    {
+      "col": "H",
+      "header": "Fecha efectiva",
+      "model": "crm.visit",
+      "field": "effective_date",
+      "ok": true,
+      "type": "date",
+      "string_odoo": "Fecha efectiva",
+      "relation": null
+    },
+    {
+      "col": "I",
+      "header": "Fecha de entrada",
+      "model": "crm.visit",
+      "field": "entry_geofence",
+      "ok": true,
+      "type": "datetime",
+      "string_odoo": "Fecha de entrada",
+      "relation": null
+    },
+    {
+      "col": "J",
+      "header": "Fecha de salida",
+      "model": "crm.visit",
+      "field": "exit_geofence",
+      "ok": true,
+      "type": "datetime",
+      "string_odoo": "Fecha de salida",
+      "relation": null
+    },
+    {
+      "col": "K",
+      "header": "Duracion entrada/salida",
+      "model": "crm.visit",
+      "field": "time_difference_str",
+      "ok": true,
+      "type": "char",
+      "string_odoo": "Duracion entrada/salida",
+      "relation": null
+    },
+    {
+      "col": "L",
+      "header": "Estado",
+      "model": "crm.visit",
+      "field": "state",
+      "ok": true,
+      "type": "selection",
+      "string_odoo": "Estado",
+      "relation": null
+    }
+  ]
+}

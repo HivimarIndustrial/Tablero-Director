@@ -1,0 +1,7 @@
+{
+  "_comentario": "Plantilla. Copiar a claves.json y reemplazar las claves reales. claves.json esta en .gitignore.",
+  "usuarios": [
+    {"id": "jaime", "nombre": "Jaime Echeverria", "clave": "CAMBIAR_CLAVE_JAIME"},
+    {"id": "juan",  "nombre": "Juan Davila",      "clave": "CAMBIAR_CLAVE_JUAN"}
+  ]
+}
