@@ -31,8 +31,14 @@ HTML_IN    = os.path.join(SCRIPT_DIR, 'Tablero_Director_Industria.html')
 DOCS_DIR   = os.path.join(SCRIPT_DIR, 'docs')
 HTML_OUT   = os.path.join(DOCS_DIR, 'index.html')
 CLAVES     = os.path.join(SCRIPT_DIR, 'claves.json')
+# Master key persistente entre publicaciones. Si NO existe se genera y se
+# guarda; si existe se reusa. Esto permite que la opcion "Recordarme" del
+# tablero siga funcionando despues de cada publicacion diaria (de lo
+# contrario, cada nuevo HTML invalidaria los mk en localStorage de los
+# usuarios y los obligaria a re-login). Gitignored via *.key.
+MASTER_KEY = os.path.join(SCRIPT_DIR, 'master_key.key')
 
-PBKDF2_ITER = 200_000
+PBKDF2_ITER = 600_000  # OWASP 2023+ recomendacion para PBKDF2-SHA256
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +61,27 @@ def encrypt_data_for_users(plaintext: str) -> dict:
 
     def b64(b): return base64.b64encode(b).decode('ascii')
 
-    master_key = os.urandom(32)
+    # Reusar master_key persistente para no invalidar localStorage (Recordarme).
+    if os.path.exists(MASTER_KEY):
+        with open(MASTER_KEY, 'rb') as f:
+            master_key = f.read()
+        if len(master_key) != 32:
+            print(f"[cifrar] AVISO: master_key.key con tamano invalido "
+                  f"({len(master_key)}); regenerando.")
+            master_key = os.urandom(32)
+            with open(MASTER_KEY, 'wb') as f:
+                f.write(master_key)
+        else:
+            print(f"[cifrar] master_key reusada desde {MASTER_KEY}")
+    else:
+        master_key = os.urandom(32)
+        with open(MASTER_KEY, 'wb') as f:
+            f.write(master_key)
+        try:
+            os.chmod(MASTER_KEY, 0o600)
+        except OSError:
+            pass
+        print(f"[cifrar] master_key NUEVA generada y guardada en {MASTER_KEY}")
     iv_data    = os.urandom(12)
     ct = AESGCM(master_key).encrypt(iv_data, plaintext.encode('utf-8'), None)
 
