@@ -72,7 +72,15 @@ def _leer_raw(nombre_csv, nombre_excel):
             f"Eso genera los CSVs en salida_raw/ que este script necesita."
         )
     print(f"  [CSV] {nombre_csv}")
-    return pd.read_csv(csv_path, encoding='utf-8')
+    try:
+        return pd.read_csv(csv_path, encoding='utf-8')
+    except pd.errors.EmptyDataError:
+        # CSV vacio (0 filas Y sin header). Pasa cuando el extractor Qlik
+        # devuelve 0 filas (ej. cartera a inicio de mes / festivo, antes
+        # del fallback al mes anterior). En vez de tumbar el HTML del
+        # tablero, devolvemos un DataFrame vacio y avisamos.
+        print(f"  [CSV] AVISO: {nombre_csv} esta vacio -> DataFrame vacio")
+        return pd.DataFrame()
 
 print("Leyendo datos transaccionales (CSV enriquecido preferido, Excel fallback)...")
 raw_ventas = _leer_raw('ventas_enriquecido.csv',        'raw_ventas')
@@ -938,6 +946,145 @@ for _, r in dim_cli.iterrows():
 
 print(f"  {len(clientes_cartera)} clientes")
 
+# ══ ENTREGAS HIVITRACK (Industria) ══
+# Lee salida_raw/entregas_industria.csv producido por
+# extraer_entregas_hivitrack.py (Paso 2g de update_tablero.py) y produce
+# las estructuras que consume la pestana 'Entregas' del tablero.
+print("Procesando entregas Hivitrack...")
+import math
+entregas_csv = os.path.join(SALIDA_RAW, 'entregas_industria.csv')
+entregas_kpi_global = {'n_total': 0, 'n_estricto': 0, 'cobertura': 0,
+                       'lead_total_mediana': 0, 'credito_mediana': 0,
+                       'logistica_mediana': 0,
+                       'lead_total_prom': 0, 'credito_prom': 0,
+                       'logistica_prom': 0}
+entregas_por_clasif = {}
+entregas_retira_agente = {'n_retira': 0, 'n_total': 0, 'pct': 0,
+                          'top_agentes': [], 'evol_mensual': {}}
+entregas_evol_mensual = {}
+
+# Mapa codigoDestinatario (con leading zeros) -> Clasificacion AAA/A/B/C/D
+# dim_clientes.cliente_id_std viene SIN ceros (ej '465656'); Hivitrack los
+# trae con leading zeros (ej '0000465656'). Normalizamos a SIN ceros.
+clas_lookup = {}
+sup_lookup_cli = {}
+for _, r in dim_cli.iterrows():
+    cid = str(r.get('cliente_id_std') or '').strip().lstrip('0')
+    if cid:
+        clas = safe_str(r.get('Clasificación')) or 'D'
+        clas_lookup[cid] = clas
+        sup_lookup_cli[cid] = safe_str(r.get('supervisor_std'))
+
+if os.path.exists(entregas_csv):
+    ent_df = pd.read_csv(entregas_csv, sep=';', encoding='utf-8-sig',
+                          dtype=str)
+    print(f"  {len(ent_df)} entregas en entregas_industria.csv")
+
+    def _parse_dt(s):
+        if not s or s == 'nan' or s == '':
+            return None
+        try:
+            return pd.to_datetime(s, errors='coerce')
+        except Exception:
+            return None
+
+    ent_df['t_crea'] = ent_df['fechaHoraCreacionPedido'].apply(_parse_dt)
+    ent_df['t_lib']  = ent_df['fechaHoraLiberacionPedido'].apply(_parse_dt)
+    ent_df['t_ent']  = ent_df['fechaEntregado'].apply(_parse_dt)
+    ent_df['mes']    = ent_df['t_crea'].dt.strftime('%Y-%m')
+
+    # Cliente normalizado y clasificacion (default D si no aparece en dim)
+    ent_df['cli_norm'] = ent_df['codigoDestinatario'].astype(str).str.lstrip('0')
+    ent_df['clasif'] = ent_df['cli_norm'].map(clas_lookup).fillna('D')
+
+    # Tiempos en dias (NaN si falta alguna fecha)
+    def _diff_days(a, b):
+        if pd.isna(a) or pd.isna(b):
+            return None
+        d = (b - a).total_seconds() / 86400
+        return d if d >= 0 else None
+    ent_df['lead_d']   = ent_df.apply(lambda r: _diff_days(r['t_crea'], r['t_ent']), axis=1)
+    ent_df['cred_d']   = ent_df.apply(lambda r: _diff_days(r['t_crea'], r['t_lib']), axis=1)
+    ent_df['logi_d']   = ent_df.apply(lambda r: _diff_days(r['t_lib'],  r['t_ent']), axis=1)
+
+    # Marcado retira agente
+    ruta_sap = ent_df['rutaSAP'].fillna('').astype(str).str.upper()
+    trp_sap  = ent_df['transporteSAP'].fillna('').astype(str).str.upper()
+    ent_df['retira_agente'] = ruta_sap.str.contains('RETIROS AGENTE') | (trp_sap == 'RETIRA AGENTE')
+
+    estricto = ent_df.dropna(subset=['lead_d', 'cred_d', 'logi_d'])
+
+    # KPI global
+    entregas_kpi_global['n_total'] = int(len(ent_df))
+    entregas_kpi_global['n_estricto'] = int(len(estricto))
+    entregas_kpi_global['cobertura'] = round(
+        100.0 * len(estricto) / max(1, len(ent_df)), 1)
+    if len(estricto):
+        entregas_kpi_global['lead_total_mediana'] = round(float(estricto['lead_d'].median()), 2)
+        entregas_kpi_global['credito_mediana']   = round(float(estricto['cred_d'].median()), 2)
+        entregas_kpi_global['logistica_mediana'] = round(float(estricto['logi_d'].median()), 2)
+        entregas_kpi_global['lead_total_prom']   = round(float(estricto['lead_d'].mean()), 2)
+        entregas_kpi_global['credito_prom']      = round(float(estricto['cred_d'].mean()), 2)
+        entregas_kpi_global['logistica_prom']    = round(float(estricto['logi_d'].mean()), 2)
+
+    # Por clasificacion
+    for clas in ['AAA', 'A', 'B', 'C', 'D']:
+        sub_tot = ent_df[ent_df['clasif'] == clas]
+        sub_est = estricto[estricto['clasif'] == clas]
+        entregas_por_clasif[clas] = {
+            'n_total': int(len(sub_tot)),
+            'n_estricto': int(len(sub_est)),
+            'cobertura': round(100.0 * len(sub_est) / max(1, len(sub_tot)), 1),
+            'lead_mediana':  round(float(sub_est['lead_d'].median()),  2) if len(sub_est) else 0,
+            'credito_mediana': round(float(sub_est['cred_d'].median()), 2) if len(sub_est) else 0,
+            'logistica_mediana': round(float(sub_est['logi_d'].median()), 2) if len(sub_est) else 0,
+            'lead_prom':     round(float(sub_est['lead_d'].mean()),    2) if len(sub_est) else 0,
+        }
+
+    # Retira agente
+    ra_n = int(ent_df['retira_agente'].sum())
+    ra_total = int(len(ent_df))
+    entregas_retira_agente['n_retira'] = ra_n
+    entregas_retira_agente['n_total'] = ra_total
+    entregas_retira_agente['pct'] = round(100.0 * ra_n / max(1, ra_total), 2)
+    # Top 10 agentes con mas retiros
+    top_ag = (ent_df[ent_df['retira_agente']]
+              .groupby('nombreAgente').size()
+              .sort_values(ascending=False).head(10))
+    entregas_retira_agente['top_agentes'] = [
+        {'agente': str(k), 'n': int(v)} for k, v in top_ag.items()
+    ]
+    # Evolucion mensual de retira agente
+    evol_ra = {}
+    for mes, grp in ent_df.groupby('mes'):
+        if not mes or pd.isna(mes):
+            continue
+        total = len(grp)
+        retira = int(grp['retira_agente'].sum())
+        evol_ra[str(mes)] = {
+            'total': total,
+            'retira': retira,
+            'pct': round(100.0 * retira / max(1, total), 2),
+        }
+    entregas_retira_agente['evol_mensual'] = evol_ra
+
+    # Evolucion mensual de tiempos (medianas)
+    for mes, grp in estricto.groupby('mes'):
+        if not mes or pd.isna(mes):
+            continue
+        entregas_evol_mensual[str(mes)] = {
+            'n': int(len(grp)),
+            'lead_mediana':      round(float(grp['lead_d'].median()), 2),
+            'credito_mediana':   round(float(grp['cred_d'].median()), 2),
+            'logistica_mediana': round(float(grp['logi_d'].median()), 2),
+        }
+
+    print(f"  entregas_kpi_global: n_estricto={entregas_kpi_global['n_estricto']}/"
+          f"{entregas_kpi_global['n_total']} cob={entregas_kpi_global['cobertura']}%")
+    print(f"  retira_agente: {ra_n}/{ra_total} = {entregas_retira_agente['pct']}%")
+else:
+    print(f"  AVISO: no existe {entregas_csv} (sin datos de entregas)")
+
 # ══ BUILD DB OBJECT ══
 print("Construyendo DB...")
 
@@ -982,6 +1129,10 @@ DB = {
     'sup_jp': sup_jp,
     'rotacion_grupo': rotacion_por_grupo,
     'rotacion_total': rotacion_total,
+    'entregas_kpi_global': entregas_kpi_global,
+    'entregas_por_clasif': entregas_por_clasif,
+    'entregas_retira_agente': entregas_retira_agente,
+    'entregas_evol_mensual': entregas_evol_mensual,
     'last_update': datetime.now().strftime('%d/%m/%Y %H:%M'),
 }
 

@@ -416,12 +416,118 @@ def main():
             segmento_data = None
             print()
 
+        # 2d) Inventario por SKU (BI - STOCK AL CIERRE) -> CSV para Cotizador por Correo
+        # Es independiente del tablero; si falla NO debe abortar el pipeline.
+        print("--- Paso 2d: Qlik INVENTARIO POR SKU (Stock al Cierre) ---")
+        try:
+            import extraer_inventario_sku
+            from datetime import datetime as _dt
+            headers_inv, rows_inv = extraer_inventario_sku.fetch_inventario_sku(verbose=True)
+            extraer_inventario_sku.escribir_csv(
+                rows_inv, extraer_inventario_sku.DEST_FILE, _dt.now()
+            )
+            print(f"  CSV inventario SKU: {extraer_inventario_sku.DEST_FILE} "
+                  f"({len(rows_inv)} SKUs)")
+            print()
+        except Exception as e:
+            print(f"  ERROR extrayendo inventario SKU: {e}", file=sys.stderr)
+            print(f"  continuando sin actualizar inventario_sku.csv")
+            print()
+
+        # 2e) Ventas Industria (historico 36 meses por (cliente, SKU))
+        #     -> CSV unico para Cotizador por Correo (alimenta MBB con
+        #        PVP de la ultima venta).
+        # Filtro: clientes asignados a supervisores Industria
+        # (JJJ/JR/DM/PS/VQ/MB) segun dim_clientes.
+        print("--- Paso 2e: Qlik VENTAS INDUSTRIA (36m por cliente x SKU) ---")
+        try:
+            import extraer_ventas_industria
+            _t = time.time()
+            _rows, _ultimas = extraer_ventas_industria.fetch_ventas_industria(
+                verbose=True
+            )
+            _dest = os.path.join(extraer_ventas_industria.DEST_DIR,
+                                 extraer_ventas_industria.DEST_FILE)
+            _n = extraer_ventas_industria.escribir_csv(
+                _rows, _ultimas, _dest, verbose=True
+            )
+            print(f"  Industria: {_n:,} filas en {_dest} "
+                  f"({time.time()-_t:.0f}s)")
+            print()
+        except Exception as e:
+            print(f"  ERROR extrayendo ventas Industria: {e}", file=sys.stderr)
+            print(f"  continuando sin actualizar ventas_industria.csv")
+            print()
+
+        # 2f) Digitador Industria (24 meses por digitador x fecha x factura)
+        #     -> CSV en Cotizador por Correo\historico_clientes para proyecto
+        #        de productividad/decisiones. Sesion Qlik independiente,
+        #        envuelta en try/except: ningun fallo aqui detiene el resto
+        #        del pipeline ni toca archivos de salida_raw/ (tableros).
+        print("--- Paso 2f: Qlik DIGITADOR INDUSTRIA (24m granular factura) ---")
+        try:
+            import extraer_digitador_industria
+            _t = time.time()
+            _rows_d = extraer_digitador_industria.fetch_digitadores(verbose=True)
+            _dest_d = os.path.join(extraer_digitador_industria.DEST_DIR,
+                                   extraer_digitador_industria.DEST_FILE)
+            _n_d = extraer_digitador_industria.escribir_csv(
+                _rows_d, _dest_d, verbose=True
+            )
+            print(f"  Digitador: {_n_d:,} filas en {_dest_d} "
+                  f"({time.time()-_t:.0f}s)")
+            print()
+        except Exception as e:
+            print(f"  ERROR extrayendo digitador Industria: {e}", file=sys.stderr)
+            print(f"  continuando sin actualizar digitadores_industria.csv "
+                  f"(no afecta tableros)")
+            print()
+
+        # 2g) Entregas Hivitrack Industria (incremental 45d, upsert sobre
+        #     CSV historico). Alimenta la pestana 'Entregas' del Tablero
+        #     Director. Aislada en try/except; si falla, NO toca el
+        #     entregas_industria.csv previo.
+        print("--- Paso 2g: Hivitrack ENTREGAS INDUSTRIA (incremental 45d) ---")
+        try:
+            import extraer_entregas_hivitrack as ent_h
+            _t = time.time()
+            _nuevas = ent_h.descargar_ventana(verbose=True)
+            _hist = ent_h.cargar_historico()
+            _hist = ent_h.upsert(_hist, _nuevas, verbose=True)
+            ent_h.escribir_csv(_hist, verbose=True)
+            print(f"  Entregas Industria: {len(_hist):,} filas en historico "
+                  f"({time.time()-_t:.0f}s)")
+            print()
+        except Exception as e:
+            print(f"  ERROR extrayendo entregas Hivitrack: {e}", file=sys.stderr)
+            print(f"  continuando sin actualizar entregas_industria.csv "
+                  f"(la pestana Entregas usara la version previa)")
+            print()
+
     # 3) Odoo
     odoo_data = {}
     if not skip_odoo:
         print("--- Paso 3: Odoo ---")
         odoo_data = odoo_client.fetch_all(verbose=True)
         print()
+
+        # 3b) MB58 (consignment.line + check_agreement) -> mb58.csv
+        print("--- Paso 3b: Odoo MB58 (consignment / prestamos) ---")
+        try:
+            import extraer_mb58
+            _t = time.time()
+            _cli = odoo_client.OdooClient(verbose=False)
+            _cli.authenticate()
+            _rows = extraer_mb58.extract_mb58(_cli)
+            extraer_mb58.save_csv(_rows)
+            _no_reg = sum(1 for r in _rows if r['es_no_regularizado'])
+            print(f"  MB58: {len(_rows):,} lineas, {_no_reg:,} no regularizadas "
+                  f"({time.time()-_t:.0f}s)")
+            print()
+        except Exception as e:
+            print(f"  ERROR extrayendo MB58: {e}", file=sys.stderr)
+            print(f"  continuando sin actualizar mb58.csv")
+            print()
 
     # 4) Enriquecer datos (aplica VLOOKUPs en Python) y escribir CSVs
     print("--- Paso 4: Enriquecer datos + escribir CSVs ---")
@@ -514,7 +620,63 @@ def main():
             print("FATAL: fallo la regeneracion del HTML", file=sys.stderr)
             sys.exit(rc)
 
-    # 6) Stock Valvulas para Peru (extractor + correo automatico).
+    # 6) Cifrar Tablero Director + push a GitHub Pages (publicacion publica)
+    #    Si falla, NO abortamos: el HTML local ya quedo bien.
+    #    Skipea con --skip-publicar.
+    if '--skip-publicar' not in args and not skip_html:
+        print()
+        print("--- Paso 6: Cifrar Tablero Director + push a GitHub Pages ---")
+        t_pub = time.time()
+        try:
+            cifrar_script = os.path.join(PROJECT_DIR, 'cifrar_y_publicar.py')
+            r = subprocess.run(
+                [PYTHON_EXE, cifrar_script],
+                cwd=PROJECT_DIR, capture_output=True, text=True,
+                encoding='utf-8', errors='replace',
+            )
+            if r.stdout:
+                for line in r.stdout.strip().splitlines()[-5:]:
+                    _safe_print(f"    {line}")
+            if r.returncode != 0:
+                print(f"  WARN cifrar_y_publicar.py (rc={r.returncode}):",
+                      file=sys.stderr)
+                if r.stderr:
+                    print(r.stderr[-500:], file=sys.stderr)
+            else:
+                # Git: add docs/ + commit + push. Si no hay cambios, git
+                # commit devuelve rc=1 inofensivo (lo tratamos como OK).
+                fecha_str = datetime.now().strftime('%d/%m/%Y %H:%M')
+                msg = f"Actualizacion diaria {fecha_str}"
+                git_cmds = [
+                    ['git', 'add', 'docs/index.html'],
+                    ['git', 'commit', '-m', msg],
+                    ['git', 'push'],
+                ]
+                git_ok = True
+                for cmd in git_cmds:
+                    rg = subprocess.run(cmd, cwd=PROJECT_DIR,
+                                         capture_output=True, text=True,
+                                         encoding='utf-8', errors='replace')
+                    label = ' '.join(cmd[:2])
+                    if rg.returncode != 0:
+                        out = (rg.stdout or '') + (rg.stderr or '')
+                        # Caso comun: "nothing to commit" -> no es error real.
+                        if 'nothing to commit' in out.lower():
+                            print(f"    {label}: sin cambios (docs/ ya publicado)")
+                            git_ok = False  # no tiene sentido push despues
+                            break
+                        print(f"    {label} fallo: {out.strip()[-300:]}",
+                              file=sys.stderr)
+                        git_ok = False
+                        break
+                    else:
+                        print(f"    {label}: OK")
+                if git_ok:
+                    print(f"    push a GitHub Pages: OK en {time.time()-t_pub:.1f}s")
+        except Exception as e:
+            print(f"  WARN paso publicar: {e}", file=sys.stderr)
+
+    # 7) Stock Valvulas para Peru (extractor + correo automatico).
     #    Pipeline aparte: si falla, no abortamos el resto. Skipea con --skip-peru.
     if '--skip-peru' not in args:
         print()
