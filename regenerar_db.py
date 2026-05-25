@@ -173,6 +173,23 @@ ventas_vend_tg_mes = {}  # {vendedor: {tipo_grupo: {YYYY-MM: {venta, costo}}}} -
 ventas_vend_cli = {}     # {vendedor: {cliente: {venta, costo}}}
 ventas_grupo_mes = {}    # {grupo: {YYYY-MM: {venta, costo}}}
 ventas_resp_mes = {}     # {resp: {YYYY-MM: {venta, costo}}}
+ventas_seg_det_mes = {}  # {sector_detalle: {YYYY-MM: {venta,costo}}} 37 sectores
+
+# Lookup cliente -> sector detallado (los 37 valores de Qlik SEGMENTO_CLIENTE)
+seg_det_lookup = {}
+seg_det_csv = os.path.join(SALIDA_RAW, 'segmentacion_clientes.csv')
+if os.path.exists(seg_det_csv):
+    try:
+        seg_det_df = pd.read_csv(seg_det_csv, encoding='utf-8',
+                                  dtype={'cod_cliente': str})
+        for _, sr in seg_det_df.iterrows():
+            cid = str(sr.get('cod_cliente') or '').strip().lstrip('0')
+            seg_det = safe_str(sr.get('SEGMENTO_CLIENTE'))
+            if cid and seg_det and seg_det != '-':
+                seg_det_lookup[cid] = seg_det
+        print(f"  seg_det_lookup: {len(seg_det_lookup)} clientes con sector detallado")
+    except Exception as e:
+        print(f"  AVISO: no se pudo leer segmentacion_clientes.csv: {e}")
 
 for _, r in rv.iterrows():
     k = km(r['AÑO'], r['MES'])
@@ -182,6 +199,14 @@ for _, r in rv.iterrows():
     seg = safe_str(r.get('segmento'))
     cli = safe_str(r.get('cliente_nombre_std'))
     grupo = safe_str(r.get('grupo_articulo_std'))
+    # Sector detallado (37 valores). Cae a 'Sin clasificar' si el cliente
+    # no esta en el lookup. Normalizamos cod_cliente: float -> int -> str
+    # sin ceros a la izquierda (ej '467589.0' -> '467589').
+    _cc = r.get('cod_cliente')
+    if isinstance(_cc, float) and not math.isnan(_cc):
+        _cc = int(_cc)
+    cod_cli_norm = safe_str(_cc).lstrip('0') or '0'
+    seg_det = seg_det_lookup.get(cod_cli_norm) or 'Sin clasificar'
     vista = safe_str(r.get('vista_tablero'))
     resp = safe_str(r.get('responsable_producto_std')) or 'COMERCIO'
 
@@ -198,6 +223,14 @@ for _, r in rv.iterrows():
         if k not in ventas_seg_mes_all[seg]:
             ventas_seg_mes_all[seg][k] = {'venta': 0}
         ventas_seg_mes_all[seg][k]['venta'] += venta
+
+    # ventas_seg_det_mes (sector detallado, 37 valores)
+    if seg_det not in ventas_seg_det_mes:
+        ventas_seg_det_mes[seg_det] = {}
+    if k not in ventas_seg_det_mes[seg_det]:
+        ventas_seg_det_mes[seg_det][k] = {'venta': 0, 'costo': 0}
+    ventas_seg_det_mes[seg_det][k]['venta'] += venta
+    ventas_seg_det_mes[seg_det][k]['costo'] += costo
 
     # ventas_seg_mes (solo COMERCIAL)
     if seg and vista == 'COMERCIAL':
@@ -1129,6 +1162,7 @@ DB = {
     'sup_jp': sup_jp,
     'rotacion_grupo': rotacion_por_grupo,
     'rotacion_total': rotacion_total,
+    'ventas_seg_det_mes': ventas_seg_det_mes,
     'entregas_kpi_global': entregas_kpi_global,
     'entregas_por_clasif': entregas_por_clasif,
     'entregas_retira_agente': entregas_retira_agente,

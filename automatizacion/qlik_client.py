@@ -41,7 +41,11 @@ APPS = {
         'app_name': 'BI - Nuevos canales ventas',
         'sheet_title_contains': 'VENTAS POR CANAL',
         'obj_id': 'WLZKpFa',
-        'n_cols': 11,
+        # 2026-05-19: sistemas anadio columna NOMBRE_DIGITAR_N (etiqueta UI
+        # 'nombre_digitador') a la tabla del sheet -> ahora son 12 columnas.
+        # La columna nueva se propaga a ventas_enriquecido.csv para otros
+        # proyectos que la consumen.
+        'n_cols': 12,
         'selections': {
             # Desde 2024 hasta el anio actual
             'AÑO_N': '_dynamic_years_from_2024',
@@ -294,8 +298,17 @@ def fetch_table(app_id: str, obj_id: str, session_cookie: str,
 
         dim_info = hc.get('qDimensionInfo', [])
         mea_info = hc.get('qMeasureInfo', [])
-        headers = [d.get('qFallbackTitle', '') for d in dim_info] + \
-                  [m.get('qFallbackTitle', '') for m in mea_info]
+        all_titles = [d.get('qFallbackTitle', '') for d in dim_info] + \
+                     [m.get('qFallbackTitle', '') for m in mea_info]
+        # Qlik puede aplicar 'qColumnOrder' para reordenar columnas en la
+        # tabla visual; cuando esta presente, el GetHyperCubeData devuelve
+        # los datos en ese orden, no en dims-then-measures natural.
+        # Por eso alineamos headers al mismo orden que las filas.
+        col_order = hc.get('qColumnOrder') or []
+        if col_order and len(col_order) == len(all_titles):
+            headers = [all_titles[i] for i in col_order]
+        else:
+            headers = all_titles
         n_cols = len(headers)
 
         if expected_cols is not None and n_cols != expected_cols:
@@ -345,8 +358,20 @@ def fetch_table(app_id: str, obj_id: str, session_cookie: str,
         sess.close()
 
 
+def _previous_month(y: int, m: int) -> tuple:
+    """Devuelve (anio, mes) del mes anterior con rollover de anio."""
+    if m == 1:
+        return (y - 1, 12)
+    return (y, m - 1)
+
+
 def fetch_all(session_cookie: Optional[str] = None, verbose: bool = True) -> dict:
-    """Descarga las 3 tablas (ventas, cartera, inventario). Devuelve dict con keys."""
+    """Descarga las 3 tablas (ventas, cartera, inventario). Devuelve dict con keys.
+
+    Para 'cartera': si la consulta del mes actual devuelve 0 filas (caso comun
+    a inicio de mes / dias festivos cuando aun no se carga el cierre), se
+    reintenta automaticamente con el mes anterior (con rollover de anio).
+    """
     if session_cookie is None:
         session_cookie = login_and_get_cookie(verbose=verbose)
     out = {}
@@ -360,6 +385,34 @@ def fetch_all(session_cookie: Optional[str] = None, verbose: bool = True) -> dic
                                     expected_cols=cfg['n_cols'],
                                     selections=selections,
                                     verbose=verbose)
+
+        # Fallback solo para cartera cuando viene vacia: reintentar con el
+        # mes anterior. Las apps de cartera publican el cierre con desfase,
+        # asi que los primeros dias del mes / despues de festivos puede no
+        # haber datos del mes en curso.
+        if key == 'cartera' and not rows and 'AÑO' in selections and 'MES' in selections:
+            try:
+                y = int(selections['AÑO'][0])
+                m = int(selections['MES'][0])
+                py, pm = _previous_month(y, m)
+                fb = dict(selections)
+                fb['AÑO'] = [str(py)]
+                fb['MES'] = [str(pm)]
+                if verbose:
+                    print(f"[qlik/cartera] mes actual vacio -> reintentando "
+                          f"con mes anterior AÑO={py} MES={pm}")
+                headers, rows = fetch_table(cfg['app_id'], cfg['obj_id'],
+                                            session_cookie,
+                                            expected_cols=cfg['n_cols'],
+                                            selections=fb,
+                                            verbose=verbose)
+                if verbose:
+                    print(f"[qlik/cartera] fallback {py}-{pm:02d}: "
+                          f"{len(rows)} filas")
+            except Exception as e:
+                if verbose:
+                    print(f"[qlik/cartera] fallback fallo: {e}")
+
         out[key] = {'headers': headers, 'rows': rows}
     return out
 
@@ -523,12 +576,19 @@ def fetch_segmentacion_clientes(session_cookie: Optional[str] = None,
         if verbose:
             print(f"[qlik/segmento] OpenDoc en {time.time()-t0:.1f}s")
 
-        dims = ['cod_cliente', 'SEGMENTO_CLIENTE']
+        # IMPORTANTE: 'cod_cliente' (minuscula) NO es un campo real en la
+        # app, solo CODIGO_CLIENTE (mayuscula) lo es. Tambien hace falta
+        # una medida tecnica para forzar el join (sin medida Qlik solo
+        # devuelve los 37 segmentos sueltos sin cliente).
+        dims = ['CODIGO_CLIENTE', 'SEGMENTO_CLIENTE']
         hc_def = {
             'qInfo': {'qType': 'custom_segmento'},
             'qHyperCubeDef': {
                 'qDimensions': [{'qDef': {'qFieldDefs': [d]}} for d in dims],
-                'qMeasures': [],
+                'qMeasures': [
+                    {'qDef': {'qDef': 'Sum(VALOR_ANTES_IVA)',
+                              'qLabel': '_venta_aux'}}
+                ],
                 'qInitialDataFetch': [],
                 'qSuppressZero': True,
                 'qSuppressMissing': True,
@@ -544,11 +604,16 @@ def fetch_segmentacion_clientes(session_cookie: Optional[str] = None,
         if verbose:
             print(f"[qlik/segmento] tamano total: {n_cols} col x {n_rows} fil")
 
+        # Headers: solo dims (no incluimos la medida tecnica en el output).
+        # Renombramos CODIGO_CLIENTE -> cod_cliente para que enriquecer_datos
+        # siga reconociendo la columna sin tener que cambiar nada mas alla.
         headers = [d.get('qFallbackTitle', '') for d in hc.get('qDimensionInfo', [])]
+        headers = ['cod_cliente' if h == 'CODIGO_CLIENTE' else h for h in headers]
 
         page_height = max(1, MAX_CELLS_PER_REQ // max(1, n_cols))
         rows_all = []
         top = 0
+        n_dims = len(hc.get('qDimensionInfo', []))
         while top < n_rows:
             pages = [{"qLeft": 0, "qTop": top, "qWidth": n_cols, "qHeight": page_height}]
             res = sess.rpc("GetHyperCubeData", ["/qHyperCubeDef", pages],
@@ -560,7 +625,8 @@ def fetch_segmentacion_clientes(session_cookie: Optional[str] = None,
             if not matrix:
                 break
             for row in matrix:
-                rows_all.append([_cell_value(c) for c in row])
+                # Descartar la medida tecnica final; conservar solo dims.
+                rows_all.append([_cell_value(c) for c in row[:n_dims]])
             if len(matrix) < page_height:
                 break
             top += page_height
