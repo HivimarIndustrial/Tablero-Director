@@ -174,6 +174,7 @@ ventas_vend_cli = {}     # {vendedor: {cliente: {venta, costo}}}
 ventas_grupo_mes = {}    # {grupo: {YYYY-MM: {venta, costo}}}
 ventas_resp_mes = {}     # {resp: {YYYY-MM: {venta, costo}}}
 ventas_seg_det_mes = {}  # {sector_detalle: {YYYY-MM: {venta,costo}}} 37 sectores
+ventas_marca_mes = {}    # {marca: {YYYY-MM: {venta, costo}}}  228 marcas
 
 # Lookup cliente -> sector detallado (los 37 valores de Qlik SEGMENTO_CLIENTE)
 seg_det_lookup = {}
@@ -199,6 +200,7 @@ for _, r in rv.iterrows():
     seg = safe_str(r.get('segmento'))
     cli = safe_str(r.get('cliente_nombre_std'))
     grupo = safe_str(r.get('grupo_articulo_std'))
+    marca = safe_str(r.get('marca'))
     # Sector detallado (37 valores). Cae a 'Sin clasificar' si el cliente
     # no esta en el lookup. Normalizamos cod_cliente: float -> int -> str
     # sin ceros a la izquierda (ej '467589.0' -> '467589').
@@ -231,6 +233,15 @@ for _, r in rv.iterrows():
         ventas_seg_det_mes[seg_det][k] = {'venta': 0, 'costo': 0}
     ventas_seg_det_mes[seg_det][k]['venta'] += venta
     ventas_seg_det_mes[seg_det][k]['costo'] += costo
+
+    # ventas_marca_mes (228 marcas)
+    if marca:
+        if marca not in ventas_marca_mes:
+            ventas_marca_mes[marca] = {}
+        if k not in ventas_marca_mes[marca]:
+            ventas_marca_mes[marca][k] = {'venta': 0, 'costo': 0}
+        ventas_marca_mes[marca][k]['venta'] += venta
+        ventas_marca_mes[marca][k]['costo'] += costo
 
     # ventas_seg_mes (solo COMERCIAL)
     if seg and vista == 'COMERCIAL':
@@ -1163,6 +1174,7 @@ DB = {
     'rotacion_grupo': rotacion_por_grupo,
     'rotacion_total': rotacion_total,
     'ventas_seg_det_mes': ventas_seg_det_mes,
+    'ventas_marca_mes': ventas_marca_mes,
     'entregas_kpi_global': entregas_kpi_global,
     'entregas_por_clasif': entregas_por_clasif,
     'entregas_retira_agente': entregas_retira_agente,
