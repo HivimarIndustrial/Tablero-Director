@@ -30,7 +30,7 @@ permisos admin.
   |-- Enriquece los datos (_std columns, VLOOKUPs en Python)
   |-- Escribe CSVs enriquecidos en salida_raw/
   |-- Genera db_output.js
-  |-- Inyecta en Hivimar_Tablero_Industrial 8.0.html
+  |-- Inyecta en Tablero_Director_FUENTE.html
   |-- Inyecta timestamp "Actualizado: DD/MM/YYYY HH:MM"
   `-- Cierra y notifica
 

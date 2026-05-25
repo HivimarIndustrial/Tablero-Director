@@ -1,7 +1,7 @@
 # Guía de edición de diseño — Tablero Industrial Hivimar
 
 Esta guía explica cómo hacer cambios **estéticos** al archivo
-`Hivimar_Tablero_Industrial 8.0.html` sin romper el pipeline automático
+`Tablero_Director_FUENTE.html` sin romper el pipeline automático
 que lo actualiza con datos de Qlik y Odoo.
 
 Pensada para:
@@ -28,7 +28,7 @@ prompt **al inicio de la conversación**:
 
 ```
 Voy a trabajar en cambios de DISEÑO VISUAL sobre el archivo
-"Hivimar_Tablero_Industrial 8.0.html". Antes de tocar nada, lee la
+"Tablero_Director_FUENTE.html". Antes de tocar nada, lee la
 guía "GUIA_EDICION_DISENO.md" que está en la misma carpeta para
 entender qué puedes y qué no puedes modificar.
 
@@ -41,7 +41,7 @@ Reglas innegociables:
    de títulos de tarjetas (<div class="ct">...</div>) y headers de
    tablas (<th>...</th>).
 5. Haz un backup del archivo antes de empezar (copialo como
-   "Hivimar_Tablero_Industrial 8.0.preview_YYYYMMDD.html").
+   "Tablero_Director_FUENTE.preview_YYYYMMDD.html").
 6. Cuando termines, dime exactamente qué cambiaste para poder
    verificar que no haya efectos colaterales.
 
@@ -235,7 +235,7 @@ Antes de cualquier cambio, haz una copia:
 ```powershell
 # En PowerShell
 $fecha = Get-Date -Format "yyyyMMdd_HHmmss"
-Copy-Item "Hivimar_Tablero_Industrial 8.0.html" "Hivimar_Tablero_Industrial 8.0.preview_$fecha.html"
+Copy-Item "Tablero_Director_FUENTE.html" "Tablero_Director_FUENTE.preview_$fecha.html"
 ```
 
 O simplemente: clic derecho → Copiar → Pegar → renombra el pegado.
@@ -265,7 +265,7 @@ Abre el HTML editado en el navegador:
 Cierra el archivo SIN guardar. Si ya lo guardaste, restaura el backup:
 
 ```powershell
-Copy-Item "Hivimar_Tablero_Industrial 8.0.preview_YYYYMMDD_HHMMSS.html" "Hivimar_Tablero_Industrial 8.0.html" -Force
+Copy-Item "Tablero_Director_FUENTE.preview_YYYYMMDD_HHMMSS.html" "Tablero_Director_FUENTE.html" -Force
 ```
 
 ---
@@ -302,14 +302,14 @@ Para evitar conflictos de OneDrive:
 
 ### Escenario 3: OneDrive pide resolver conflicto
 
-Si aparece `Hivimar_Tablero_Industrial 8.0-NombrePC.html`:
+Si aparece `Tablero_Director_FUENTE-NombrePC.html`:
 
 1. **No borres ni uno ni otro** todavía.
 2. Abre ambos en un editor de texto.
 3. El que tiene los datos más recientes (mira la línea `var DB = ...`
    y busca `last_update`) es el que el pipeline actualizó.
 4. Copia tus cambios de diseño al archivo con datos recientes.
-5. Guarda como `Hivimar_Tablero_Industrial 8.0.html` (el original).
+5. Guarda como `Tablero_Director_FUENTE.html` (el original).
 6. Borra el archivo `-NombrePC.html`.
 
 En caso de duda, **siempre prioriza el que tiene datos más recientes**
@@ -342,7 +342,7 @@ Si todos los checks pasan, tus cambios son seguros.
 Si después de leer esta guía algo no queda claro o rompes el tablero:
 - Responsable del pipeline: **Eduardo Espino**
 - Correo: `consultorindustrial@hivimar.com`
-- Backups del HTML: hay `Hivimar_Tablero_Industrial 8.0.backup_YYYYMMDD_HHMMSS.html`
+- Backups del HTML: hay `Tablero_Director_FUENTE.backup_YYYYMMDD_HHMMSS.html`
   en la misma carpeta (el pipeline los genera automáticamente).
 
 ---
@@ -351,8 +351,8 @@ Si después de leer esta guía algo no queda claro o rompes el tablero:
 
 En la misma carpeta donde está esta guía:
 
-- `Hivimar_Tablero_Industrial 8.0.html` ← el archivo a editar
-- `Hivimar_Tablero_Industrial 8.0.backup_*.html` ← backups automáticos del pipeline
+- `Tablero_Director_FUENTE.html` ← el archivo a editar
+- `Tablero_Director_FUENTE.backup_*.html` ← backups automáticos del pipeline
 - `automatizacion/DOCUMENTACION_EXTRACCION.md` ← cómo extraer datos (para otro proyecto)
 - `db_output.js` ← datos generados por el pipeline (no editar)
 - `regenerar_db.py` ← script que genera `db_output.js` (no editar desde otro PC)

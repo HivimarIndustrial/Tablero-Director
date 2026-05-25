@@ -5,7 +5,7 @@ Genera una version reducida del tablero, llamada "Tablero Director Industria",
 que solo contiene la pestania GERENCIA (con sus secciones: Ventas, Presupuesto,
 Cartera, CRM, Visitas, Inventario, Proyeccion).
 
-Toma como base 'Hivimar_Tablero_Industrial 8.0.html' y elimina:
+Toma como base 'Tablero_Director_FUENTE.html' y elimina:
   - Botones de pestania: Supervisores, Vendedores, CRM, Perspectiva Producto.
   - Vistas <div class="view" id="vs|vv|vp|vo">.
   - Grupo de filtros 'fgrpProd' (Jefe Producto, Grupo Articulo) que solo
@@ -25,7 +25,7 @@ import json
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
-SRC = os.path.join(PROJECT_DIR, 'Hivimar_Tablero_Industrial 8.0.html')
+SRC = os.path.join(PROJECT_DIR, 'Tablero_Director_FUENTE.html')
 DST = os.path.join(PROJECT_DIR, 'Tablero_Director_Industria.html')
 
 

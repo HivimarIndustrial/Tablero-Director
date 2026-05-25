@@ -53,7 +53,7 @@ import notificar
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
 XLSX = os.path.join(PROJECT_DIR, 'Base Tablero Industria.xlsx')
-HTML_FILE = os.path.join(PROJECT_DIR, 'Hivimar_Tablero_Industrial 8.0.html')
+HTML_FILE = os.path.join(PROJECT_DIR, 'Tablero_Director_FUENTE.html')
 REGENERAR_DB = os.path.join(PROJECT_DIR, 'regenerar_db.py')
 UPDATE_HTML = os.path.join(PROJECT_DIR, 'update_html.py')
 GEN_DIRECTOR = os.path.join(SCRIPT_DIR, 'generar_tablero_director.py')

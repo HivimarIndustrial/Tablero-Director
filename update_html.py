@@ -5,7 +5,7 @@ import os
 
 # Rutas relativas al script para que corra en cualquier PC
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-HTML_FILE = os.path.join(SCRIPT_DIR, "Hivimar_Tablero_Industrial 8.0.html")
+HTML_FILE = os.path.join(SCRIPT_DIR, "Tablero_Director_FUENTE.html")
 DB_FILE = os.path.join(SCRIPT_DIR, "db_output.js")
 OUTPUT_FILE = HTML_FILE  # se sobrescribe in-place
 

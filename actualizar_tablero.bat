@@ -21,8 +21,8 @@ if not exist %PY% (
 echo.
 echo === 1/3  Respaldo del HTML actual ===
 for /f "tokens=2 delims==" %%a in ('wmic OS Get localdatetime /value ^| find "="') do set DT=%%a
-set BACKUP=Hivimar_Tablero_Industrial 8.0.backup_%DT:~0,8%_%DT:~8,6%.html
-copy /Y "Hivimar_Tablero_Industrial 8.0.html" "%BACKUP%" >nul
+set BACKUP=Tablero_Director_FUENTE.backup_%DT:~0,8%_%DT:~8,6%.html
+copy /Y "Tablero_Director_FUENTE.html" "%BACKUP%" >nul
 echo   Respaldo: %BACKUP%
 
 echo.
@@ -47,6 +47,6 @@ if errorlevel 1 (
 
 echo.
 echo ============================================================
-echo   Listo. Abre: Hivimar_Tablero_Industrial 8.0.html
+echo   Listo. Abre: Tablero_Director_FUENTE.html
 echo ============================================================
 pause
