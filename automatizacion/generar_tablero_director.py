@@ -67,6 +67,7 @@ _INTERN_FIELDS = {
     'cartera':          ('agente', 'supervisor', 'cliente', 'vencimiento',
                          'segmento'),
     'clientes_cartera': ('vend', 'sup', 'cli', 'ultima_visita'),
+    'entregas_rows':    ('sup', 'vend', 'clas', 'ag', 'mes'),
 }
 
 # Snippet JS que se inyecta INMEDIATAMENTE despues de "var DB={...};"

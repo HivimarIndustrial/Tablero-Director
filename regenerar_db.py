@@ -112,16 +112,22 @@ print(f"fact_oportunidades: {len(fact_opps)} rows")
 vend_sup_map = {}
 vend_tipo_map = {}
 vend_display = {}
+vend_por_origen = {}  # 'EDWIN ARMANDO LUNA RUIZ' -> 'EDWIN LUNA' (vendedor_std)
+                       # Para mapear nombreAgente de Hivitrack a vendedor_std.
 for _, r in dim_vend.iterrows():
     vs = safe_str(r.get('vendedor_std'))
     if not vs:
         continue
+    vo = safe_str(r.get('vendedor_origen'))
     sup = safe_str(r.get('supervisor_std'))
     tipo = safe_str(r.get('tipo_vendedor'))
     vista = safe_str(r.get('vista_tablero'))
     vend_sup_map[vs] = sup
     vend_tipo_map[vs] = tipo if tipo else 'Generalista'
     vend_display[vs] = vs
+    if vo:
+        # Normalizar mayusculas para matching robusto contra Hivitrack
+        vend_por_origen[vo.upper()] = vs
 
 # Supervisores
 sup_comercial = []
@@ -173,8 +179,10 @@ ventas_vend_tg_mes = {}  # {vendedor: {tipo_grupo: {YYYY-MM: {venta, costo}}}} -
 ventas_vend_cli = {}     # {vendedor: {cliente: {venta, costo}}}
 ventas_grupo_mes = {}    # {grupo: {YYYY-MM: {venta, costo}}}
 ventas_resp_mes = {}     # {resp: {YYYY-MM: {venta, costo}}}
-ventas_seg_det_mes = {}  # {sector_detalle: {YYYY-MM: {venta,costo}}} 37 sectores
-ventas_marca_mes = {}    # {marca: {YYYY-MM: {venta, costo}}}  228 marcas
+ventas_seg_det_mes = {}      # {sector: {km: {venta,costo}}} 37 sectores
+ventas_marca_mes = {}        # {marca: {km: {venta, costo}}}  228 marcas
+ventas_vend_sec_det_mes = {} # {vendedor: {sector: {km: {venta,costo}}}} para filtro Sup/Vend en Sectores
+ventas_vend_marca_mes = {}   # {vendedor: {marca: {km: {venta,costo}}}}  para filtro Sup/Vend en Marcas
 
 # Lookup cliente -> sector detallado (los 37 valores de Qlik SEGMENTO_CLIENTE)
 seg_det_lookup = {}
@@ -234,6 +242,18 @@ for _, r in rv.iterrows():
     ventas_seg_det_mes[seg_det][k]['venta'] += venta
     ventas_seg_det_mes[seg_det][k]['costo'] += costo
 
+    # ventas_vend_sec_det_mes: cruce vendedor x sector x mes (para filtro
+    # Supervisor/Vendedor en pestana Sectores).
+    if vendedor:
+        if vendedor not in ventas_vend_sec_det_mes:
+            ventas_vend_sec_det_mes[vendedor] = {}
+        if seg_det not in ventas_vend_sec_det_mes[vendedor]:
+            ventas_vend_sec_det_mes[vendedor][seg_det] = {}
+        if k not in ventas_vend_sec_det_mes[vendedor][seg_det]:
+            ventas_vend_sec_det_mes[vendedor][seg_det][k] = {'venta': 0, 'costo': 0}
+        ventas_vend_sec_det_mes[vendedor][seg_det][k]['venta'] += venta
+        ventas_vend_sec_det_mes[vendedor][seg_det][k]['costo'] += costo
+
     # ventas_marca_mes (228 marcas)
     if marca:
         if marca not in ventas_marca_mes:
@@ -242,6 +262,17 @@ for _, r in rv.iterrows():
             ventas_marca_mes[marca][k] = {'venta': 0, 'costo': 0}
         ventas_marca_mes[marca][k]['venta'] += venta
         ventas_marca_mes[marca][k]['costo'] += costo
+
+        # ventas_vend_marca_mes: cruce vendedor x marca x mes
+        if vendedor:
+            if vendedor not in ventas_vend_marca_mes:
+                ventas_vend_marca_mes[vendedor] = {}
+            if marca not in ventas_vend_marca_mes[vendedor]:
+                ventas_vend_marca_mes[vendedor][marca] = {}
+            if k not in ventas_vend_marca_mes[vendedor][marca]:
+                ventas_vend_marca_mes[vendedor][marca][k] = {'venta': 0, 'costo': 0}
+            ventas_vend_marca_mes[vendedor][marca][k]['venta'] += venta
+            ventas_vend_marca_mes[vendedor][marca][k]['costo'] += costo
 
     # ventas_seg_mes (solo COMERCIAL)
     if seg and vista == 'COMERCIAL':
@@ -1006,6 +1037,10 @@ entregas_por_clasif = {}
 entregas_retira_agente = {'n_retira': 0, 'n_total': 0, 'pct': 0,
                           'top_agentes': [], 'evol_mensual': {}}
 entregas_evol_mensual = {}
+entregas_rows = []  # array plano: una entrada por entrega con sup, vend,
+                     # tiempos en dias, retira_agente, clasif, mes. Permite
+                     # filtrar por Supervisor/Vendedor en JS sin perder
+                     # precision (medianas se recomputan al filtrar).
 
 # Mapa codigoDestinatario (con leading zeros) -> Clasificacion AAA/A/B/C/D
 # dim_clientes.cliente_id_std viene SIN ceros (ej '465656'); Hivitrack los
@@ -1056,7 +1091,33 @@ if os.path.exists(entregas_csv):
     trp_sap  = ent_df['transporteSAP'].fillna('').astype(str).str.upper()
     ent_df['retira_agente'] = ruta_sap.str.contains('RETIROS AGENTE') | (trp_sap == 'RETIRA AGENTE')
 
+    # Mapear nombreAgente (SAP full name) -> vendedor_std -> supervisor_std
+    # Si no hay match (cliente fuera del equipo Industria registrado), queda
+    # vacio y el filtro Supervisor lo descarta naturalmente.
+    def _map_vend(nombre_agente):
+        if not nombre_agente or pd.isna(nombre_agente):
+            return ''
+        return vend_por_origen.get(str(nombre_agente).strip().upper(), '')
+    ent_df['vend_std'] = ent_df['nombreAgente'].apply(_map_vend)
+    ent_df['sup_std'] = ent_df['vend_std'].map(vend_sup_map).fillna('')
+
     estricto = ent_df.dropna(subset=['lead_d', 'cred_d', 'logi_d'])
+
+    # entregas_rows: array plano para JS (filtrable por Sup/Vend al vuelo).
+    # Solo campos numericos+enums; los nombres ya vienen normalizados.
+    # Usamos float() / int() / str() para que el JSON sea limpio.
+    for _, er in ent_df.iterrows():
+        entregas_rows.append({
+            'sup':  er['sup_std'] or '',
+            'vend': er['vend_std'] or '',
+            'mes':  er['mes'] if pd.notna(er['mes']) else '',
+            'clas': er['clasif'],
+            'lead': round(float(er['lead_d']), 3) if pd.notna(er['lead_d']) else None,
+            'cred': round(float(er['cred_d']), 3) if pd.notna(er['cred_d']) else None,
+            'logi': round(float(er['logi_d']), 3) if pd.notna(er['logi_d']) else None,
+            'ra':   bool(er['retira_agente']),
+            'ag':   safe_str(er['nombreAgente']),
+        })
 
     # KPI global
     entregas_kpi_global['n_total'] = int(len(ent_df))
@@ -1175,6 +1236,9 @@ DB = {
     'rotacion_total': rotacion_total,
     'ventas_seg_det_mes': ventas_seg_det_mes,
     'ventas_marca_mes': ventas_marca_mes,
+    'ventas_vend_sec_det_mes': ventas_vend_sec_det_mes,
+    'ventas_vend_marca_mes': ventas_vend_marca_mes,
+    'entregas_rows': entregas_rows,
     'entregas_kpi_global': entregas_kpi_global,
     'entregas_por_clasif': entregas_por_clasif,
     'entregas_retira_agente': entregas_retira_agente,
