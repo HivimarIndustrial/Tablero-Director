@@ -59,8 +59,12 @@ APPS = {
         'n_cols': 32,
         'selections': {
             'jefe_ventas': ['JUAN DAVILA', 'JUAN BLADIMIR DAVILA CHACON'],
-            'AÑO': '_dynamic_current_year',
-            'MES': '_dynamic_current_month',
+            # Usamos el AÑO/MES de AYER. Durante el mes (dia >= 2) eso
+            # equivale al mes en curso (el snapshot se va actualizando).
+            # El primer dia del mes (dia 1) cae en el mes anterior, lo
+            # que evita pedir un mes sin snapshot publicado aun.
+            'AÑO': '_dynamic_yesterday_year',
+            'MES': '_dynamic_yesterday_month',
         },
     },
     'inventario': {
@@ -70,16 +74,29 @@ APPS = {
         'obj_id': 'Jmzsjm',
         'n_cols': 4,
         'selections': {
-            'AÑO': '_dynamic_current_year',
-            'MES': '_dynamic_current_month',
+            # Mismo criterio que cartera: AÑO/MES de ayer.
+            'AÑO': '_dynamic_yesterday_year',
+            'MES': '_dynamic_yesterday_month',
         },
     },
 }
 
 
 def _resolve_selections(raw: dict) -> Dict[str, List[str]]:
-    """Expande tokens _dynamic_* a listas concretas de valores (strings)."""
+    """Expande tokens _dynamic_* a listas concretas de valores (strings).
+
+    _dynamic_yesterday_month / _dynamic_yesterday_year:
+        Usado para cartera e inventario. Toma el AÑO/MES de AYER (today-1).
+        Si hoy es dia >=2: ayer cae en el mismo mes -> usa mes actual.
+        Si hoy es dia 1: ayer cae en el ultimo dia del mes anterior ->
+        usa el mes anterior (que es donde esta publicado el ultimo snapshot
+        cerrado en Qlik).
+        Esto evita el problema de pedir el mes en curso cuando el snapshot
+        de cierre aun no se publico (devuelve cartera viva inflada).
+    """
+    from datetime import timedelta
     today = date.today()
+    yesterday = today - timedelta(days=1)
     out = {}
     for field, val in raw.items():
         if val == '_dynamic_years_from_2024':
@@ -88,6 +105,10 @@ def _resolve_selections(raw: dict) -> Dict[str, List[str]]:
             out[field] = [str(today.year)]
         elif val == '_dynamic_current_month':
             out[field] = [str(today.month)]
+        elif val == '_dynamic_yesterday_year':
+            out[field] = [str(yesterday.year)]
+        elif val == '_dynamic_yesterday_month':
+            out[field] = [str(yesterday.month)]
         elif isinstance(val, list):
             out[field] = [str(v) for v in val]
         else:
@@ -386,11 +407,29 @@ def fetch_all(session_cookie: Optional[str] = None, verbose: bool = True) -> dic
                                     selections=selections,
                                     verbose=verbose)
 
-        # Fallback solo para cartera cuando viene vacia: reintentar con el
-        # mes anterior. Las apps de cartera publican el cierre con desfase,
-        # asi que los primeros dias del mes / despues de festivos puede no
-        # haber datos del mes en curso.
-        if key == 'cartera' and not rows and 'AÑO' in selections and 'MES' in selections:
+        # Fallback para cartera/inventario cuando viene vacia o "tiene 1
+        # fila placeholder" (Qlik a veces devuelve [['-','-',0,0]] cuando
+        # el corte de mes no esta publicado todavia): reintentar con el
+        # mes anterior. Las apps de cartera/inventario publican el cierre
+        # con desfase; los primeros dias del mes pueden no tener datos.
+        def _es_resultado_vacio_o_placeholder(rs):
+            if not rs:
+                return True
+            # Caso inventario: 1 sola fila con todos los valores '-' o 0/None
+            if len(rs) <= 1:
+                fila = rs[0] if rs else []
+                vacia = all(
+                    (v is None) or (isinstance(v, str) and v.strip() in ('', '-'))
+                    or (isinstance(v, (int, float)) and v == 0)
+                    for v in fila
+                )
+                if vacia:
+                    return True
+            return False
+
+        if (key in ('cartera', 'inventario')
+                and _es_resultado_vacio_o_placeholder(rows)
+                and 'AÑO' in selections and 'MES' in selections):
             try:
                 y = int(selections['AÑO'][0])
                 m = int(selections['MES'][0])
@@ -399,7 +438,7 @@ def fetch_all(session_cookie: Optional[str] = None, verbose: bool = True) -> dic
                 fb['AÑO'] = [str(py)]
                 fb['MES'] = [str(pm)]
                 if verbose:
-                    print(f"[qlik/cartera] mes actual vacio -> reintentando "
+                    print(f"[qlik/{key}] mes actual vacio -> reintentando "
                           f"con mes anterior AÑO={py} MES={pm}")
                 headers, rows = fetch_table(cfg['app_id'], cfg['obj_id'],
                                             session_cookie,
@@ -407,11 +446,11 @@ def fetch_all(session_cookie: Optional[str] = None, verbose: bool = True) -> dic
                                             selections=fb,
                                             verbose=verbose)
                 if verbose:
-                    print(f"[qlik/cartera] fallback {py}-{pm:02d}: "
+                    print(f"[qlik/{key}] fallback {py}-{pm:02d}: "
                           f"{len(rows)} filas")
             except Exception as e:
                 if verbose:
-                    print(f"[qlik/cartera] fallback fallo: {e}")
+                    print(f"[qlik/{key}] fallback fallo: {e}")
 
         out[key] = {'headers': headers, 'rows': rows}
     return out

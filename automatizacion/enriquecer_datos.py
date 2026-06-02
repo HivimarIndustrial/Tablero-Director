@@ -339,6 +339,10 @@ def enriquecer_ventas(qlik_data, lookups):
         nombre_agente = _s(get('nombre_agente'))
         nombre_cliente = _s(get('nombre_cliente'))
         cod_cliente = _norm_cliente_id(get('cod_cliente'))
+        # nombre_digitador: anadido al hypercube por sistemas en 2026-05-19.
+        # Se propaga al enriquecido para que otros proyectos puedan consumirlo.
+        # Si el campo no esta presente (rollback de sistemas) cae a vacio.
+        nombre_digitador = _s(get('nombre_digitador'))
         venta = _n(get('Venta neta'))
         costo = _n(get('Costo Interno'))
         unid = _n(get('Unidades Vendidas'))
@@ -365,6 +369,7 @@ def enriquecer_ventas(qlik_data, lookups):
             'AÑO': anio, 'MES': mes, 'segmento': seg, 'grupo_articulo': grupo,
             'marca': marca, 'nombre_agente': nombre_agente,
             'nombre_cliente': nombre_cliente, 'cod_cliente': cod_cliente,
+            'nombre_digitador': nombre_digitador,
             'Venta neta': venta, 'Costo Interno': costo,
             'Unidades Vendidas': unid,
             'vendedor_principal_std': vendedor_std,
@@ -386,11 +391,27 @@ def enriquecer_ventas(qlik_data, lookups):
 
 
 def enriquecer_cartera(qlik_data, lookups):
-    """raw_cartera: 32 cols Qlik + 7 _std."""
+    """raw_cartera: 32 cols Qlik + 7 _std.
+
+    POST-FILTRO INDUSTRIA: el objeto KGTrxF en Qlik ignora el filtro
+    'jefe_ventas' (set expression o alternate state interno). Por eso aunque
+    el extractor seleccione Juan Davila + Juan Bladimir Davila Chacon,
+    Qlik devuelve TODAS las 490k filas (todos los jefes de Hivimar).
+    Filtramos aqui en Python para quedarnos solo con cartera Industria.
+    """
+    JEFES_INDUSTRIA = {'JUAN DAVILA', 'JUAN BLADIMIR DAVILA CHACON'}
     headers = qlik_data['headers']
     idx = {h: i for i, h in enumerate(headers)}
+    idx_jv = idx.get('jefe_ventas')
     out = []
+    n_descartadas = 0
     for row in qlik_data['rows']:
+        # Post-filtro Industria por jefe_ventas
+        if idx_jv is not None:
+            jv = (row[idx_jv] if idx_jv < len(row) else '') or ''
+            if jv not in JEFES_INDUSTRIA:
+                n_descartadas += 1
+                continue
         get = _make_get(headers, row)
         record = {h: row[i] if i < len(row) else None for i, h in enumerate(headers)}
 
@@ -422,6 +443,8 @@ def enriquecer_cartera(qlik_data, lookups):
         record['Segmento'] = cli_info.get('segmento', '')
         record['segmento_cliente_detalle'] = lookups['seg_cli_detalle'].get(cod_cliente, '')
         out.append(record)
+    print(f"[enriquecer/cartera] post-filtro Industria: kept={len(out):,} "
+          f"descartadas (no Industria)={n_descartadas:,}")
     return out
 
 
